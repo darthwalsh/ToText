@@ -26,9 +26,13 @@ if (!(Test-Path $flac)) {
 $json = [System.IO.Path]::GetFileNameWithoutExtension($File) + ".json"
 
 if (!(Test-Path $json)) {
-  gcloud ml speech recognize-long-running --language-code en-US --format json "$flac" > $json
+  gcloud ml speech recognize-long-running --language-code en-US --format json --include-word-time-offsets "$flac" > $json
 } else { 
   echo "$json already exists"
 }
 
-gc $json
+$j = gc -raw $json | ConvertFrom-Json
+
+$txt = [System.IO.Path]::GetFileNameWithoutExtension($File) + " labels.txt"
+
+$j.results.alternatives.words | % { "$($_.startTime -replace "s")`t$($_.endTime -replace "s")`t$($_.word)" } > $txt
