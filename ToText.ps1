@@ -12,17 +12,20 @@ Set-StrictMode -Version Latest
 if ($NoCache) {
   Write-Host -ForegroundColor DarkGray  "Skipping all cached values..."
 }
-
 if (!(Test-Path $File)) {
   throw "$File doesn't exist!"
 }
+
+function ToExtension($ext) {
+  Join-Path ([System.IO.Path]::GetDirectoryName($File)) ([System.IO.Path]::GetFileNameWithoutExtension($File) + $ext)
+}
+
 $extension = [System.IO.Path]::GetExtension($File)
 $supportedConversions = @(".aac", ".mp3")
 if ($extension -eq ".flac") {
   $flac = $File
 } elseif ($extension -in $supportedConversions) {
-  $flac = [System.IO.Path]::GetFileNameWithoutExtension($File) + ".flac"
-
+  $flac = ToExtension ".flac"
   if (!(Test-Path $flac) -or $NoCache) {
     Write-Host -ForegroundColor DarkGray  "Converting $File to $flac..."
     # gCloud doesn't support AAC, so use FLAC format
@@ -42,8 +45,7 @@ if (!(Test-GcsObject -Bucket whythinkdata -ObjectName $cloudFile) -or $NoCache) 
   Write-GcsObject -Bucket whythinkdata -ObjectName $cloudFile -File $flac -Force
 }
 
-$json = [System.IO.Path]::GetFileNameWithoutExtension($File) + ".json"
-
+$json = ToExtension ".json"
 if (!(Test-Path $json) -or $NoCache) {
   Write-Host -ForegroundColor DarkGray "Running gcloud ml speech"
   gcloud ml speech recognize-long-running --language-code en-US --format json --include-word-time-offsets "$gsPath" > $json
@@ -55,8 +57,7 @@ if (!(Test-Path $json) -or $NoCache) {
   }
 }
 
-$txt = [System.IO.Path]::GetFileNameWithoutExtension($File) + " labels.txt"
-
+$txt = ToExtension ".txt"
 if (!(Test-Path $txt) -or $NoCache) {
   Write-Host -ForegroundColor DarkGray "Converting JSON to TXT labels"
   $j = gc -raw $json | ConvertFrom-Json
